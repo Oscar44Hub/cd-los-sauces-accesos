@@ -1,0 +1,17 @@
+{
+  "name": "CD Los Sauces · Control de accesos",
+  "short_name": "Los Sauces",
+  "description": "Control de entrada de socios a la piscina del Club Deportivo Los Sauces (Papatrigo)",
+  "lang": "es",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f8f7",
+  "theme_color": "#0f6e5a",
+  "icons": [
+    { "src": "icono-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icono-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
