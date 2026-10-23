@@ -3,7 +3,7 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { SesionProvider, useSesion } from './auth/Sesion';
 import { Layout } from './components/Layout';
 import { LayoutSocio } from './components/LayoutSocio';
-import { configurado } from './lib/supabase';
+import { configurado, supabase } from './lib/supabase';
 import { Acceso } from './pages/Acceso';
 
 const Carnet = lazy(() => import('./pages/Carnet').then((m) => ({ default: m.Carnet })));
@@ -59,6 +59,12 @@ function Principal() {
           Has entrado como <strong>{perfil?.email ?? sesion.user.email}</strong>. La junta del club tiene que activar tu
           cuenta: si eres socio, la vinculará a tu familia; si vas a llevar la taquilla, te dará permiso de acceso.
         </p>
+        <button className="boton boton-secundario" onClick={() => window.location.reload()}>
+          Volver a comprobar
+        </button>
+        <button className="enlace" onClick={() => supabase.auth.signOut()}>
+          Cerrar sesión
+        </button>
       </div>
     );
   }
