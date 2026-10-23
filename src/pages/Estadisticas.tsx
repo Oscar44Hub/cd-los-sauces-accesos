@@ -83,14 +83,15 @@ export function Estadisticas() {
         <section className="tarjeta">
           <h3>Visitas por día</h3>
           <div className="grafico-barras" role="img" aria-label="Visitas por día">
-            {e.por_dia.map((d) => (
+            {e.por_dia.map((d, i) => (
               <div key={d.dia} className="barra-dia" title={`${fecha(d.dia)}: ${d.socios} socios, ${d.invitados} invitados`}>
-                <span className="valor">{d.socios + d.invitados}</span>
+                {/* Con muchos días no caben las cifras ni todas las fechas */}
+                {e.por_dia.length <= 14 && <span className="valor">{d.socios + d.invitados}</span>}
                 <div className="pila-barra" style={{ height: `${((d.socios + d.invitados) / maxDia) * 100}%` }}>
                   <div className="b-invitados" style={{ flex: d.invitados }} />
                   <div className="b-socios" style={{ flex: d.socios }} />
                 </div>
-                <span className="eje">{d.dia.slice(8)}</span>
+                <span className="eje">{e.por_dia.length <= 14 || i % 5 === 0 ? d.dia.slice(8) : '\u00a0'}</span>
               </div>
             ))}
           </div>

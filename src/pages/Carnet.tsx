@@ -9,6 +9,11 @@ import { carnetsGuardados, guardarCarnet } from './MisCarnets';
 /** Carnet digital que el socio abre en su móvil (no necesita cuenta). */
 export function Carnet() {
   const { codigo = '' } = useParams();
+  // key: al pasar de un carnet a otro se empieza de cero (estado de «guardado», datos…)
+  return <VistaCarnet key={codigo} codigo={codigo} />;
+}
+
+function VistaCarnet({ codigo }: { codigo: string }) {
   const [c, setC] = useState<CarnetPublico | null | undefined>(undefined);
   const [guardado, setGuardado] = useState(() => carnetsGuardados().some((x) => x.codigo === codigo));
 

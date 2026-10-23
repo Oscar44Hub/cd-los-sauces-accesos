@@ -87,7 +87,7 @@ export function Inicio() {
           🔎 Buscar socio
         </Link>
       </div>
-      {t && <p className="tenue centrado-texto">Temporada {t.nombre}</p>}
+      {t && <p className="tenue centrado-texto">Temporada activa: {t.nombre}</p>}
     </div>
   );
 }
