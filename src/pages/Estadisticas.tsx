@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { ok, temporadaActiva, useConsulta } from '../lib/datos';
+import { cuotasAlDia, ok, temporadaActiva, useConsulta } from '../lib/datos';
+import { useSesion } from '../auth/Sesion';
 import { PARENTESCOS, fecha, hoyISO, sumarDias } from '../lib/formato';
 import type { Parentesco, SocioCompleto } from '../lib/tipos';
 
@@ -21,21 +22,27 @@ type Periodo = 'hoy' | '7' | '30' | 'temporada';
 
 export function Estadisticas() {
   const [periodo, setPeriodo] = useState<Periodo>('7');
+  const { esSuper } = useSesion();
   const { datos } = useConsulta(async () => {
     const t = await temporadaActiva();
     const hoy = hoyISO();
     const desde =
       periodo === 'hoy' ? hoy : periodo === '7' ? sumarDias(hoy, -6) : periodo === '30' ? sumarDias(hoy, -29) : (t?.fecha_inicio ?? sumarDias(hoy, -29));
     const hasta = periodo === 'temporada' && t ? (t.fecha_fin < hoy ? t.fecha_fin : hoy) : hoy;
-    const [est, socios] = await Promise.all([
+    const [est, socios, alDia] = await Promise.all([
       supabase.rpc('estadisticas', { p_desde: desde, p_hasta: hasta }).then(ok<Est>),
-      supabase.from('socios').select('*, personas(id, activo, es_jubilado, es_fundador), cuotas(*)').eq('activo', true).then(ok<SocioCompleto[]>),
+      supabase.from('socios').select('*, personas(id, activo, es_jubilado, es_fundador)').eq('activo', true).then(ok<SocioCompleto[]>),
+      cuotasAlDia(),
     ]);
-    const pagados = socios.filter((s) => s.exento_cuota || s.cuotas.some((c) => c.temporada_id === t?.id && c.pagada));
-    const recaudado = socios.reduce(
-      (n, s) => n + s.cuotas.filter((c) => c.temporada_id === t?.id && c.pagada).reduce((m, c) => m + Number(c.importe), 0),
-      0,
-    );
+    const pagados = socios.filter((s) => alDia.get(s.id));
+    // Lo recaudado solo lo ve el superadmin (la taquilla no tiene acceso a los pagos)
+    let recaudado: number | null = null;
+    if (esSuper && t) {
+      const pagos = ok(
+        await supabase.from('pagos').select('importe, cuotas!inner(temporada_id)').eq('cuotas.temporada_id', t.id),
+      ) as { importe: number }[];
+      recaudado = pagos.reduce((n, x) => n + Number(x.importe), 0);
+    }
     const personas = socios.flatMap((s) => s.personas.filter((p) => p.activo));
     return {
       est, desde, hasta, t,
@@ -50,7 +57,7 @@ export function Estadisticas() {
         recaudado,
       },
     };
-  }, [periodo]);
+  }, [periodo, esSuper]);
 
   const e = datos?.est;
   const maxDia = Math.max(1, ...(e?.por_dia.map((d) => d.socios + d.invitados) ?? [1]));
@@ -162,7 +169,9 @@ export function Estadisticas() {
               <tr><td>· Jubilados</td><td>{datos.censo.jubilados}</td></tr>
               <tr><td>· Fundadores</td><td>{datos.censo.fundadores}</td></tr>
               <tr className="separador"><td>Cuota al día (o exentos)</td><td>{datos.censo.pagados} de {datos.censo.socios}</td></tr>
-              <tr><td>Recaudado en cuotas</td><td>{datos.censo.recaudado.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td></tr>
+              {datos.censo.recaudado != null && (
+                <tr><td>Cobrado en cuotas</td><td>{datos.censo.recaudado.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</td></tr>
+              )}
             </tbody>
           </table>
         </section>

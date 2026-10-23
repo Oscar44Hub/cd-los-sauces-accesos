@@ -31,8 +31,8 @@ export function Acceso() {
         if (error) throw error;
         setAviso(
           data.session
-            ? 'Cuenta creada. Un administrador tiene que aprobarla.'
-            : 'Te hemos enviado un email para confirmar la cuenta. Después, un administrador tendrá que aprobarla.',
+            ? 'Cuenta creada. La junta del club tiene que activarla.'
+            : 'Te hemos enviado un email para confirmar la cuenta. Después, la junta del club tendrá que activarla.',
         );
       }
     } catch (err) {
@@ -55,7 +55,7 @@ export function Acceso() {
       )}
 
       <form onSubmit={enviar} className="formulario tarjeta">
-        <h2>{modo === 'entrar' ? 'Entrar (junta y taquilla)' : 'Crear cuenta de taquilla'}</h2>
+        <h2>{modo === 'entrar' ? 'Entrar' : 'Crear cuenta'}</h2>
         {modo === 'registro' && (
           <label>
             Nombre
@@ -83,7 +83,7 @@ export function Acceso() {
           {enviando ? 'Un momento…' : modo === 'entrar' ? 'Entrar' : 'Crear cuenta'}
         </button>
         <button type="button" className="enlace" onClick={() => setModo(modo === 'entrar' ? 'registro' : 'entrar')}>
-          {modo === 'entrar' ? '¿Vas a llevar la taquilla? Crea tu cuenta' : 'Ya tengo cuenta'}
+          {modo === 'entrar' ? '¿No tienes cuenta? Créala (socios y personal del club)' : 'Ya tengo cuenta'}
         </button>
       </form>
     </div>

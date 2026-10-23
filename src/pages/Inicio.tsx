@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { ok, temporadaActiva, useConsulta } from '../lib/datos';
-import { fecha, hoyISO } from '../lib/formato';
+import { euros, fecha, hoyISO } from '../lib/formato';
 import { useSesion } from '../auth/Sesion';
 
 interface Resumen {
@@ -12,7 +12,7 @@ interface Resumen {
 }
 
 export function Inicio() {
-  const { esAdmin } = useSesion();
+  const { esSuper } = useSesion();
   const { datos, recargar } = useConsulta(async () => {
     const hoy = hoyISO();
     const [t, aforo, est] = await Promise.all([
@@ -20,8 +20,20 @@ export function Inicio() {
       supabase.rpc('aforo_actual').then(ok<number>),
       supabase.rpc('estadisticas', { p_desde: hoy, p_hasta: hoy }).then(ok<Resumen>),
     ]);
-    return { t, aforo, est };
-  });
+    // Resumen de cuotas: solo el superadmin
+    let cuotas: { previsto: number; cobrado: number; pendientes: number } | null = null;
+    if (esSuper && t) {
+      const filas = ok(
+        await supabase.from('cuotas').select('importe, pagada, pagos(importe)').eq('temporada_id', t.id),
+      ) as { importe: number; pagada: boolean; pagos: { importe: number }[] }[];
+      cuotas = {
+        previsto: filas.reduce((n, c) => n + Number(c.importe), 0),
+        cobrado: filas.reduce((n, c) => n + c.pagos.reduce((m, x) => m + Number(x.importe), 0), 0),
+        pendientes: filas.filter((c) => !c.pagada).length,
+      };
+    }
+    return { t, aforo, est, cuotas };
+  }, [esSuper]);
 
   // Se refresca solo cada 30 segundos
   useEffect(() => {
@@ -38,7 +50,7 @@ export function Inicio() {
       {!t && datos && (
         <div className="aviso aviso-alerta">
           No hay ninguna temporada activa: nadie podrá entrar.{' '}
-          {esAdmin && <Link to="/temporadas">Crear o activar temporada</Link>}
+          {esSuper && <Link to="/temporadas">Crear o activar temporada</Link>}
         </div>
       )}
       {t && !abierta && (
@@ -75,6 +87,18 @@ export function Inicio() {
           <span>rechazos</span>
         </div>
       </div>
+
+      {datos?.cuotas && (
+        <Link to="/pagos" className="tarjeta enlace-tarjeta">
+          <span className="tenue">Cuotas de la temporada</span>
+          <strong>
+            {euros(datos.cuotas.cobrado)} <small className="tenue">cobrados de {euros(datos.cuotas.previsto)}</small>
+          </strong>
+          {datos.cuotas.pendientes > 0 && (
+            <span className="error">{datos.cuotas.pendientes} familias con la cuota pendiente</span>
+          )}
+        </Link>
+      )}
 
       <Link to="/escanear" className="boton boton-enorme">
         📷 Escanear carnet

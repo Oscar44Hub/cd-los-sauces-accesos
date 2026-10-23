@@ -35,3 +35,9 @@ export function ok<T>(r: { data: T | null; error: unknown }): T {
 export async function temporadaActiva(): Promise<Temporada | null> {
   return ok(await supabase.from('temporadas').select('*').eq('activa', true).maybeSingle()) as Temporada | null;
 }
+
+/** Socios con la cuota de la temporada activa al día (o exentos). Sirve a la taquilla: no incluye importes. */
+export async function cuotasAlDia(): Promise<Map<number, boolean>> {
+  const filas = ok(await supabase.rpc('cuotas_al_dia')) as { socio_id: number; al_dia: boolean }[];
+  return new Map(filas.map((f) => [f.socio_id, f.al_dia]));
+}

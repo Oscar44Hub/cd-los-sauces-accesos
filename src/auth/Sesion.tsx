@@ -7,8 +7,12 @@ interface EstadoSesion {
   cargando: boolean;
   sesion: Session | null;
   perfil: Perfil | null;
-  esAdmin: boolean;
+  /** Superadmin: todo, incluidos pagos, altas de familias, temporadas y usuarios */
+  esSuper: boolean;
+  /** Admin (taquilla) o superadmin: control de acceso */
   esStaff: boolean;
+  /** Cuenta de socio vinculada a su familia */
+  esSocio: boolean;
   recargarPerfil: () => Promise<void>;
 }
 
@@ -49,8 +53,9 @@ export function SesionProvider({ children }: { children: ReactNode }) {
         cargando,
         sesion,
         perfil,
-        esAdmin: rol === 'admin',
-        esStaff: rol === 'admin' || rol === 'taquilla',
+        esSuper: rol === 'superadmin',
+        esStaff: rol === 'admin' || rol === 'superadmin',
+        esSocio: rol === 'socio' && perfil?.socio_id != null,
         recargarPerfil: () => cargarPerfil(sesion),
       }}
     >

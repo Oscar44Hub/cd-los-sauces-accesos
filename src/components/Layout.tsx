@@ -3,7 +3,7 @@ import { useSesion } from '../auth/Sesion';
 import { supabase } from '../lib/supabase';
 
 export function Layout() {
-  const { perfil, esAdmin } = useSesion();
+  const { perfil, esSuper } = useSesion();
   const navegar = useNavigate();
   return (
     <div className="app">
@@ -18,11 +18,16 @@ export function Layout() {
         <details className="menu-usuario">
           <summary aria-label="Menú">☰</summary>
           <div onClick={(e) => ((e.currentTarget.parentElement as HTMLDetailsElement).open = false)}>
-            <p className="tenue">{perfil?.nombre ?? perfil?.email}</p>
+            <p className="tenue">
+              {perfil?.nombre ?? perfil?.email}
+              <br />
+              <small>{esSuper ? 'Superadmin' : 'Admin (control de acceso)'}</small>
+            </p>
             <NavLink to="/presentes">Personas dentro</NavLink>
             <NavLink to="/estadisticas">Estadísticas</NavLink>
-            {esAdmin && <NavLink to="/temporadas">Temporadas y cuotas</NavLink>}
-            {esAdmin && <NavLink to="/usuarios">Usuarios de la app</NavLink>}
+            {esSuper && <NavLink to="/pagos">Pagos y cuotas</NavLink>}
+            {esSuper && <NavLink to="/temporadas">Temporadas</NavLink>}
+            {esSuper && <NavLink to="/usuarios">Usuarios y socios con cuenta</NavLink>}
             <button
               className="enlace"
               onClick={async () => {
@@ -46,7 +51,7 @@ export function Layout() {
           <span>📷</span>Escanear
         </NavLink>
         <NavLink to="/socios">
-          <span>👨‍👩‍👧</span>Socios
+          <span>👨‍👩‍👧</span>Familias
         </NavLink>
         <NavLink to="/invitados">
           <span>🎟️</span>Invitados

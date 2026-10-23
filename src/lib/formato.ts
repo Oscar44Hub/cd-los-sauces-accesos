@@ -1,4 +1,4 @@
-import type { Parentesco, TipoSocio } from './tipos';
+import type { Parentesco, Persona, Tarifa, TipoSocio } from './tipos';
 
 export const PARENTESCOS: Record<Parentesco, string> = {
   titular: 'Titular',
@@ -12,6 +12,27 @@ export const TIPOS_SOCIO: Record<TipoSocio, string> = {
   familiar: 'Familiar',
   individual: 'Individual',
 };
+
+export const TARIFAS: Record<Tarifa, string> = {
+  familiar: 'Familiar',
+  individual: 'Individual',
+  jubilado: 'Jubilado',
+  fundador: 'Fundador',
+};
+
+export const METODOS_PAGO = ['Efectivo', 'Transferencia', 'Bizum', 'Domiciliación', 'Tarjeta'];
+
+/** Titular de la familia (o la primera persona si no hay titular) */
+export function titular(personas: Persona[]): Persona | undefined {
+  return personas.find((p) => p.parentesco === 'titular') ?? personas[0];
+}
+
+/** «Familia Blázquez Martín» para socios familiares; el nombre completo para individuales */
+export function nombreFamilia(s: { tipo: TipoSocio; numero: number; personas: Persona[] }): string {
+  const t = titular(s.personas);
+  if (!t) return `Socio nº ${s.numero}`;
+  return s.tipo === 'familiar' ? `Familia ${t.apellidos}` : nombreCompleto(t);
+}
 
 /** Fecha de hoy (AAAA-MM-DD) en hora de España, sea cual sea la zona del móvil. */
 export function hoyISO(ahora: Date = new Date()): string {

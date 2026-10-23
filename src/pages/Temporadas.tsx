@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useState, type FormEvent } from 'react';
 import { mensajeError, supabase } from '../lib/supabase';
 import { ok, useConsulta } from '../lib/datos';
@@ -28,8 +29,8 @@ export function Temporadas() {
         </button>
       </div>
       <p className="tenue">
-        Solo se puede entrar con la temporada activa y dentro de sus fechas. Las cuotas se marcan como pagadas en la
-        ficha de cada socio.
+        Solo se puede entrar con la temporada activa y dentro de sus fechas. Las tarifas, las cuotas y los pagos se
+        gestionan en <Link to="/pagos">Pagos y cuotas</Link>.
       </p>
       {error && <p className="error">{error}</p>}
       {datos?.map((t) => (

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { PARENTESCOS, fecha } from '../lib/formato';
+import { PARENTESCOS, fecha, hoyISO } from '../lib/formato';
 import type { CarnetPublico } from '../lib/tipos';
 import { Qr } from '../components/Qr';
 import { carnetsGuardados, guardarCarnet } from './MisCarnets';
@@ -51,9 +51,15 @@ function VistaCarnet({ codigo }: { codigo: string }) {
     );
 
   const invitado = c.tipo === 'invitado';
+  const paseFuturo = invitado && !!c.fecha && c.fecha > hoyISO();
   return (
     <div className="carnet-digital">
-      <div className={`carnet-movil ${c.valido ? '' : 'carnet-no-valido'}`}>
+      {window.history.length > 1 && (
+        <button className="enlace carnet-volver" onClick={() => history.back()}>
+          ← Volver
+        </button>
+      )}
+      <div className={`carnet-movil ${c.valido || paseFuturo ? '' : 'carnet-no-valido'}`}>
         <div className="carnet-banda">
           <img src="./icono.svg" alt="" />
           <span>CD LOS SAUCES</span>
@@ -79,7 +85,7 @@ function VistaCarnet({ codigo }: { codigo: string }) {
             </span>
           )}
         </div>
-        {!c.valido && <p className="error">{invitado ? 'Este pase no es para hoy' : 'Carnet desactivado. Contacta con el club.'}</p>}
+        {!c.valido && !paseFuturo && <p className="error">{invitado ? 'Este pase no es para hoy' : 'Carnet desactivado. Contacta con el club.'}</p>}
       </div>
       <p className="tenue centrado-texto">Sube el brillo de la pantalla y acércalo al lector de la entrada.</p>
       {!invitado && !guardado && (

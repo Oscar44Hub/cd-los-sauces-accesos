@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { edad, etiquetas, fecha, hoyISO, normalizar, sumarDias } from './formato';
+import { edad, etiquetas, fecha, hoyISO, nombreFamilia, normalizar, sumarDias } from './formato';
 
 describe('formato', () => {
   it('calcula la edad teniendo en cuenta si ya ha cumplido', () => {
@@ -26,5 +26,19 @@ describe('formato', () => {
 
   it('busca sin acentos ni mayúsculas', () => {
     expect(normalizar('  GARCÍA Muñoz')).toBe('garcia munoz');
+  });
+});
+
+describe('familias', () => {
+  const persona = (nombre: string, apellidos: string, parentesco: 'titular' | 'hijo') =>
+    ({ nombre, apellidos, parentesco }) as import('./tipos').Persona;
+  it('nombra a la familia por los apellidos del titular', () => {
+    expect(
+      nombreFamilia({ tipo: 'familiar', numero: 1, personas: [persona('Leo', 'García Sanz', 'hijo'), persona('Ana', 'García Martín', 'titular')] }),
+    ).toBe('Familia García Martín');
+  });
+  it('usa el nombre completo en socios individuales y el número si no hay personas', () => {
+    expect(nombreFamilia({ tipo: 'individual', numero: 3, personas: [persona('Ángel', 'Jiménez', 'titular')] })).toBe('Ángel Jiménez');
+    expect(nombreFamilia({ tipo: 'familiar', numero: 7, personas: [] })).toBe('Socio nº 7');
   });
 });

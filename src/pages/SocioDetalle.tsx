@@ -1,22 +1,23 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { mensajeError, supabase } from '../lib/supabase';
-import { ok, temporadaActiva, useConsulta } from '../lib/datos';
-import { PARENTESCOS, TIPOS_SOCIO, edad, enlaceCarnet, etiquetas, euros, fecha, hoyISO, nombreCompleto } from '../lib/formato';
+import { cuotasAlDia, ok, temporadaActiva, useConsulta } from '../lib/datos';
+import { PARENTESCOS, TARIFAS, TIPOS_SOCIO, edad, enlaceCarnet, etiquetas, euros, fecha, nombreCompleto, nombreFamilia } from '../lib/formato';
 import { compartirEnlace, enlaceWhatsApp } from '../lib/compartir';
 import { avisar } from '../lib/avisos';
-import type { PaseDia, Persona, ResultadoAcceso, SocioCompleto, TipoSocio } from '../lib/tipos';
+import type { PaseDia, Perfil, Persona, ResultadoAcceso, SocioCompleto, Tarifa, TipoSocio } from '../lib/tipos';
 import { useSesion } from '../auth/Sesion';
 import { Foto } from '../components/Foto';
 import { Modal } from '../components/Modal';
 import { PersonaForm } from '../components/PersonaForm';
 import { Qr } from '../components/Qr';
 import { Resultado } from '../components/Resultado';
+import { CuotaPagos, tarifaDe, type CuotaConPagos } from '../components/CuotaPagos';
 import { registrarAcceso } from './Escanear';
 
 export function SocioDetalle() {
   const { id } = useParams();
-  const { esAdmin } = useSesion();
+  const { esSuper } = useSesion();
   const navegar = useNavigate();
   const [editando, setEditando] = useState<Persona | 'nueva' | null>(null);
   const [verQr, setVerQr] = useState<Persona | null>(null);
@@ -27,18 +28,21 @@ export function SocioDetalle() {
   const { datos, error, recargar } = useConsulta(async () => {
     const t = await temporadaActiva();
     const s = ok(
-      await supabase.from('socios').select('*, personas(*), cuotas(*)').eq('id', Number(id)).single(),
-    ) as SocioCompleto;
+      await supabase.from('socios').select('*, personas(*), cuotas(*, pagos(*))').eq('id', Number(id)).single(),
+    ) as Omit<SocioCompleto, 'cuotas'> & { cuotas: CuotaConPagos[] };
     s.personas.sort((a, b) => ordenParentesco(a) - ordenParentesco(b) || (a.fecha_nacimiento ?? '').localeCompare(b.fecha_nacimiento ?? ''));
     const pases = t
       ? (ok(await supabase.from('pases_dia').select('*').eq('socio_id', s.id).eq('temporada_id', t.id).order('fecha', { ascending: false })) as PaseDia[])
       : [];
-    return { t, s, pases };
-  }, [id]);
+    const alDia = (await cuotasAlDia()).get(s.id) ?? false;
+    // Cuentas de socio vinculadas a esta familia (solo las ve el superadmin)
+    const cuentas = esSuper ? (ok(await supabase.from('perfiles').select('*').eq('socio_id', s.id)) as Perfil[]) : [];
+    return { t, s, pases, alDia, cuentas };
+  }, [id, esSuper]);
 
   if (error) return <p className="error">{mensajeError(error)}</p>;
   if (!datos) return <p className="tenue">Cargando…</p>;
-  const { s, t, pases } = datos;
+  const { s, t, pases, alDia, cuentas } = datos;
   const cuota = s.cuotas.find((c) => c.temporada_id === t?.id);
 
   async function accion(fn: () => PromiseLike<unknown>, mensaje?: string) {
@@ -73,20 +77,21 @@ export function SocioDetalle() {
   return (
     <div className="pila">
       <Link to="/socios" className="enlace">
-        ← Socios
+        ← Familias
       </Link>
 
       <section className="tarjeta">
         <div className="fila espaciada">
           <div>
-            <h2>Socio nº {s.numero}</h2>
+            <h2>{nombreFamilia(s)}</h2>
             <p className="tenue">
-              {TIPOS_SOCIO[s.tipo]}
+              Socio nº {s.numero} · {TIPOS_SOCIO[s.tipo]}
+              {esSuper && !s.exento_cuota && ` · Tarifa ${TARIFAS[tarifaDe(s)].toLowerCase()}`}
               {s.exento_cuota && ' · Exento de cuota'}
               {!s.activo && ' · DADO DE BAJA'}
             </p>
           </div>
-          {esAdmin && (
+          {esSuper && (
             <button className="boton boton-secundario" onClick={() => setEditarSocio(true)}>
               Editar
             </button>
@@ -98,29 +103,38 @@ export function SocioDetalle() {
           </p>
         )}
         {s.observaciones && <p>📝 {s.observaciones}</p>}
+        {esSuper && (
+          <p className="tenue">
+            👤 Cuentas en la app:{' '}
+            {cuentas.length ? cuentas.map((c) => c.email).join(', ') : 'ninguna'} ·{' '}
+            <Link to="/usuarios">gestionar</Link>
+          </p>
+        )}
       </section>
 
-      {t && (
-        <Cuota
-          socio={s}
-          temporadaId={t.id}
-          nombreTemporada={t.nombre}
-          esAdmin={esAdmin}
-          onCambio={recargar}
-          cuota={cuota}
-        />
+      {t && esSuper && <CuotaPagos socio={s} temporada={t} cuota={cuota} onCambio={recargar} />}
+      {t && !esSuper && (
+        <section className={`tarjeta cuota ${alDia ? 'cuota-ok' : 'cuota-no'}`}>
+          <div className="fila espaciada">
+            <div>
+              <h3>Cuota {t.nombre}</h3>
+              <p>{s.exento_cuota ? 'Exento de cuota' : alDia ? 'Al día' : 'Pendiente de pago: no podrán entrar'}</p>
+            </div>
+            <strong className="cuota-icono">{alDia ? '✔' : '!'}</strong>
+          </div>
+        </section>
       )}
 
       <section className="pila">
         <div className="fila espaciada">
           <h3>Personas ({s.personas.length})</h3>
           <div className="fila">
-            {s.personas.length > 0 && (
+            {esSuper && s.personas.length > 0 && (
               <Link className="boton boton-secundario" to={`/imprimir?ids=${s.personas.map((p) => p.id).join(',')}`}>
                 🖨️ Carnets
               </Link>
             )}
-            {esAdmin && (s.tipo === 'familiar' || s.personas.length === 0) && (
+            {esSuper && (s.tipo === 'familiar' || s.personas.length === 0) && (
               <button className="boton" onClick={() => setEditando('nueva')}>
                 + Persona
               </button>
@@ -163,7 +177,7 @@ export function SocioDetalle() {
                 <button className="boton boton-secundario" onClick={() => compartir(p)}>
                   📲 Carnet digital
                 </button>
-                {esAdmin && (
+                {esSuper && (
                   <>
                     <button className="boton boton-secundario" onClick={() => setEditando(p)}>
                       Editar
@@ -259,7 +273,7 @@ export function SocioDetalle() {
         </section>
       )}
 
-      {esAdmin && (
+      {esSuper && (
         <button
           className="enlace peligro"
           onClick={() =>
@@ -343,95 +357,12 @@ function ordenParentesco(p: Persona) {
   return ['titular', 'conyuge', 'abuelo', 'hijo', 'otro'].indexOf(p.parentesco);
 }
 
-function Cuota({ socio, temporadaId, nombreTemporada, cuota, esAdmin, onCambio }: {
-  socio: SocioCompleto;
-  temporadaId: number;
-  nombreTemporada: string;
-  cuota: SocioCompleto['cuotas'][number] | undefined;
-  esAdmin: boolean;
-  onCambio: () => void;
-}) {
-  const [importe, setImporte] = useState(String(cuota?.importe ?? ''));
-  const [metodo, setMetodo] = useState(cuota?.metodo ?? 'Efectivo');
-  const [error, setError] = useState('');
-
-  async function guardar(pagada: boolean) {
-    setError('');
-    try {
-      ok(
-        await supabase
-          .from('cuotas')
-          .upsert(
-            {
-              socio_id: socio.id,
-              temporada_id: temporadaId,
-              importe: Number(importe || 0),
-              pagada,
-              metodo,
-              fecha_pago: pagada ? hoyISO() : null,
-            },
-            { onConflict: 'socio_id,temporada_id' },
-          )
-          .select(),
-      );
-      onCambio();
-    } catch (e) {
-      setError(mensajeError(e));
-    }
-  }
-
-  const pagada = socio.exento_cuota || cuota?.pagada;
-  return (
-    <section className={`tarjeta cuota ${pagada ? 'cuota-ok' : 'cuota-no'}`}>
-      <div className="fila espaciada">
-        <div>
-          <h3>Cuota {nombreTemporada}</h3>
-          <p>
-            {socio.exento_cuota
-              ? 'Exento de cuota'
-              : cuota?.pagada
-                ? `Pagada${cuota.fecha_pago ? ` el ${fecha(cuota.fecha_pago)}` : ''} · ${euros(cuota.importe)}${cuota.metodo ? ` · ${cuota.metodo}` : ''}`
-                : 'Pendiente de pago: no podrán entrar'}
-          </p>
-        </div>
-        <strong className="cuota-icono">{pagada ? '✔' : '!'}</strong>
-      </div>
-      {esAdmin && !socio.exento_cuota && (
-        <div className="fila">
-          {!cuota?.pagada && (
-            <>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                placeholder="Importe €"
-                value={importe}
-                onChange={(e) => setImporte(e.target.value)}
-                aria-label="Importe"
-              />
-              <select value={metodo} onChange={(e) => setMetodo(e.target.value)} aria-label="Forma de pago">
-                <option>Efectivo</option>
-                <option>Transferencia</option>
-                <option>Bizum</option>
-                <option>Domiciliación</option>
-              </select>
-            </>
-          )}
-          <button className={`boton ${cuota?.pagada ? 'boton-secundario' : ''}`} onClick={() => guardar(!cuota?.pagada)}>
-            {cuota?.pagada ? 'Marcar como no pagada' : 'Marcar pagada'}
-          </button>
-        </div>
-      )}
-      {error && <p className="error">{error}</p>}
-    </section>
-  );
-}
-
 function EditarSocio({ socio, onGuardado }: { socio: SocioCompleto; onGuardado: () => void }) {
   const [c, setC] = useState({
     numero: String(socio.numero),
     tipo: socio.tipo,
     exento_cuota: socio.exento_cuota,
+    tarifa: socio.tarifa ?? '',
     activo: socio.activo,
     telefono: socio.telefono ?? '',
     email: socio.email ?? '',
@@ -440,6 +371,7 @@ function EditarSocio({ socio, onGuardado }: { socio: SocioCompleto; onGuardado: 
   });
   const [error, setError] = useState('');
   const cambiar = (k: keyof typeof c, v: string | boolean) => setC((x) => ({ ...x, [k]: v }));
+  const tarifaPorTipo: Tarifa = c.tipo;
 
   async function guardar(e: FormEvent) {
     e.preventDefault();
@@ -454,6 +386,7 @@ function EditarSocio({ socio, onGuardado }: { socio: SocioCompleto; onGuardado: 
           .update({
             ...c,
             numero: Number(c.numero),
+            tarifa: c.tarifa || null,
             telefono: c.telefono || null,
             email: c.email || null,
             direccion: c.direccion || null,
@@ -498,6 +431,17 @@ function EditarSocio({ socio, onGuardado }: { socio: SocioCompleto; onGuardado: 
       <label>
         Observaciones
         <textarea value={c.observaciones} onChange={(e) => cambiar('observaciones', e.target.value)} />
+      </label>
+      <label>
+        Tarifa de la cuota
+        <select value={c.tarifa} onChange={(e) => cambiar('tarifa', e.target.value)}>
+          <option value="">Según el tipo ({TARIFAS[tarifaPorTipo].toLowerCase()})</option>
+          {(Object.keys(TARIFAS) as Tarifa[]).map((k) => (
+            <option key={k} value={k}>
+              {TARIFAS[k]}
+            </option>
+          ))}
+        </select>
       </label>
       <label className="casilla">
         <input type="checkbox" checked={c.exento_cuota} onChange={(e) => cambiar('exento_cuota', e.target.checked)} />

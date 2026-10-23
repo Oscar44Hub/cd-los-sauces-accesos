@@ -26,7 +26,10 @@ motivo.
 | **Tarjeta perdida** | Con un botón se genera un QR nuevo: la tarjeta y el enlace antiguos dejan de funcionar. |
 | **Aforo** | Cuántas personas hay dentro ahora y quiénes son. Opcionalmente, un aforo máximo. |
 | **Estadísticas** | Visitas por día y por hora, quién viene (hijos, abuelos, jubilados, fundadores…), rechazos y su motivo, censo y recaudación de cuotas. |
-| **Usuarios** | **Administrador** (junta: todo) y **Taquilla** (escanear, invitados, consultar). Las cuentas nuevas no pueden hacer nada hasta que un administrador las aprueba. |
+| **Familias** | Cada nº de socio es una familia («Familia Blázquez Martín») o un socio individual, con sus miembros agrupados. |
+| **Perfiles** | **Superadmin** (junta: todo, incluidos los pagos), **Admin** (taquilla: solo control de acceso, sin importes) y **Socio** (ve su familia). Las cuentas nuevas no pueden hacer nada hasta que el superadmin las activa. |
+| **Pagos y cuotas** (superadmin) | Tarifas por tipo de socio (familiar, individual, jubilado, fundador), cuotas generadas según la tarifa, pagos en varios plazos, resumen de cobrado y pendiente, exportación a Excel y recibos para imprimir o guardar en PDF. |
+| **Área del socio** | Carnets de toda la familia en el móvil, estado de la cuota con sus recibos, historial de entradas y petición de pases de invitado (se pagan en taquilla). |
 
 ### Qué comprueba al escanear
 
@@ -49,7 +52,8 @@ se hacen en el servidor (función `registrar_acceso` de la base de datos), así 
 1. Crea una cuenta gratuita en <https://supabase.com> y un proyecto nuevo. Región: **Europe (Frankfurt o París)**, por
    protección de datos. Guarda la contraseña de la base de datos.
 2. En el proyecto, ve a **SQL Editor → New query**, pega el contenido completo de
-   [`supabase/migrations/0001_esquema.sql`](supabase/migrations/0001_esquema.sql) y pulsa **Run**.
+   [`supabase/migrations/0001_esquema.sql`](supabase/migrations/0001_esquema.sql) y pulsa **Run**. Repite con
+   [`0002_perfiles_y_pagos.sql`](supabase/migrations/0002_perfiles_y_pagos.sql) (y con cada migración nueva, en orden).
 3. Ve a **Project Settings → API** y apunta la **Project URL** y la clave **publishable / anon**. Esa clave es pública y
    puede ir en la app; la seguridad la dan las reglas de la base de datos. **Nunca** uses la clave `service_role` /
    `secret` en la app.
@@ -65,26 +69,29 @@ se hacen en el servidor (función `registrar_acceso` de la base de datos), así 
 4. En Supabase, **Authentication → URL Configuration**: pon esa dirección como **Site URL** (y también en *Redirect
    URLs*). Así funcionan bien los emails de confirmación.
 
-### 3. Crear el primer administrador
+### 3. Crear el primer superadmin
 
-1. Abre la app, pulsa **«¿Vas a llevar la taquilla? Crea tu cuenta»** y regístrate con tu email. Confirma el email que
+1. Abre la app, pulsa **«¿No tienes cuenta? Créala»** y regístrate con tu email. Confirma el email que
    te llega.
 2. En Supabase, **SQL Editor**, ejecuta (con tu email):
 
    ```sql
-   update perfiles set rol = 'admin' where email = 'tu-email@ejemplo.com';
+   update perfiles set rol = 'superadmin' where email = 'tu-email@ejemplo.com';
    ```
 
-3. Vuelve a la app y recarga. A partir de ahora, los demás usuarios se aprueban desde la propia app
-   (**☰ → Usuarios de la app**).
+3. Vuelve a la app y recarga. A partir de ahora, las demás cuentas se activan desde la propia app
+   (**☰ → Usuarios y socios con cuenta**): personal de taquilla como **admin** y socios como **socio**, vinculados a su
+   familia. Si el email de la cuenta coincide con el de la familia, la app lo sugiere.
 
 ### 4. Preparar la temporada
 
-1. **☰ → Temporadas y cuotas → + Temporada**: fechas de apertura y cierre, invitados por socio, precio del pase y
+1. **☰ → Temporadas → + Temporada**: fechas de apertura y cierre, invitados por socio, precio del pase y
    aforo (opcional). Pulsa **Activar**.
-2. **Socios → + Socio**: número de socio y tipo (familiar/individual). Después **+ Persona** para cada miembro: foto
+2. **Familias → + Familia**: número de socio y tipo (familiar/individual). Después **+ Persona** para cada miembro: foto
    (se puede hacer en el momento con el móvil), parentesco, fecha de nacimiento y fundador/jubilado.
-3. En la ficha del socio, **Marcar pagada** cuando pague la cuota.
+3. **☰ → Pagos y cuotas**: define las **tarifas** y pulsa **Generar cuotas**. Cada pago (completo o en plazos) se
+   registra en la ficha de la familia o desde Pagos, y genera su recibo. La cuota queda pagada cuando los pagos cubren
+   el importe.
 4. **Carnets**: botón 🖨️ en la ficha (los de la familia) o en el listado de socios (todos). Imprime en A4 al **100 %**,
    recorta por la línea discontinua y plastifica. O envía el **carnet digital** por WhatsApp.
 
@@ -142,7 +149,7 @@ npx supabase start              # Supabase completo en local con Docker (aplica 
 
 ```
 supabase/migrations/0001_esquema.sql   Tablas, reglas de acceso, seguridad (RLS) y fotos
-supabase/tests/                        Pruebas de la lógica de acceso (40 comprobaciones)
+supabase/tests/                        Pruebas de acceso, perfiles, pagos y migración (77 comprobaciones)
 src/pages/                             Pantallas (Escanear, Socios, Invitados, Estadísticas…)
 src/components/                        Escáner de QR, tarjeta de resultado, formularios
 .github/workflows/ci.yml               Comprobaciones y publicación en GitHub Pages

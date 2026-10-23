@@ -1,8 +1,8 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { mensajeError, supabase } from '../lib/supabase';
-import { ok, temporadaActiva, useConsulta } from '../lib/datos';
-import { TIPOS_SOCIO, nombreCompleto, normalizar } from '../lib/formato';
+import { cuotasAlDia, ok, useConsulta } from '../lib/datos';
+import { TIPOS_SOCIO, nombreCompleto, nombreFamilia, normalizar, titular as titularDe } from '../lib/formato';
 import type { SocioCompleto, TipoSocio } from '../lib/tipos';
 import { useSesion } from '../auth/Sesion';
 import { Foto } from '../components/Foto';
@@ -10,25 +10,24 @@ import { Foto } from '../components/Foto';
 type Filtro = 'todos' | 'pendientes' | 'bajas';
 
 export function Socios() {
-  const { esAdmin } = useSesion();
+  const { esSuper } = useSesion();
   const navegar = useNavigate();
   const [busqueda, setBusqueda] = useState('');
   const [filtro, setFiltro] = useState<Filtro>('todos');
   const [creando, setCreando] = useState(false);
 
   const { datos, cargando, error } = useConsulta(async () => {
-    const [t, socios] = await Promise.all([
-      temporadaActiva(),
-      supabase.from('socios').select('*, personas(*), cuotas(*)').order('numero').then(ok<SocioCompleto[]>),
+    const [alDia, socios] = await Promise.all([
+      cuotasAlDia(),
+      supabase.from('socios').select('*, personas(*)').order('numero').then(ok<SocioCompleto[]>),
     ]);
-    return { t, socios };
+    return { alDia, socios };
   });
 
   const lista = useMemo(() => {
     if (!datos) return [];
     const q = normalizar(busqueda);
-    const pagado = (s: SocioCompleto) =>
-      s.exento_cuota || s.cuotas.some((c) => c.temporada_id === datos.t?.id && c.pagada);
+    const pagado = (s: SocioCompleto) => datos.alDia.get(s.id) ?? false;
     return datos.socios.filter((s) => {
       if (filtro === 'bajas' ? s.activo : !s.activo) return false;
       if (filtro === 'pendientes' && pagado(s)) return false;
@@ -50,14 +49,16 @@ export function Socios() {
           onChange={(e) => setBusqueda(e.target.value)}
           aria-label="Buscar socio"
         />
-        {esAdmin && (
-          <button className="boton" onClick={() => setCreando(true)}>
-            + Socio
-          </button>
+        {esSuper && (
+          <>
+            <button className="boton" onClick={() => setCreando(true)}>
+              + Familia
+            </button>
+            <Link to="/imprimir" className="boton boton-secundario" title="Imprimir todos los carnets">
+              🖨️
+            </Link>
+          </>
         )}
-        <Link to="/imprimir" className="boton boton-secundario" title="Imprimir todos los carnets">
-          🖨️
-        </Link>
       </div>
       <div className="segmentado pequeno">
         {(['todos', 'pendientes', 'bajas'] as Filtro[]).map((f) => (
@@ -76,30 +77,29 @@ export function Socios() {
       )}
 
       {error ? <p className="error">{mensajeError(error)}</p> : null}
-      {cargando && !datos && <p className="tenue">Cargando socios…</p>}
+      {cargando && !datos && <p className="tenue">Cargando familias…</p>}
       <p className="tenue">
-        {lista.length} socio{lista.length === 1 ? '' : 's'} · {lista.reduce((n, s) => n + s.personas.length, 0)} personas
+        {lista.length} familia{lista.length === 1 ? '' : 's'} y socios individuales ·{' '}
+        {lista.reduce((n, s) => n + s.personas.length, 0)} personas
       </p>
 
       <ul className="lista">
         {lista.map((s) => {
-          const titular = s.personas.find((p) => p.parentesco === 'titular') ?? s.personas[0];
+          const titular = titularDe(s.personas);
           return (
             <li key={s.id}>
               <Link to={`/socios/${s.id}`} className="fila-socio">
                 <Foto path={titular?.foto_path} nombre={titular ? nombreCompleto(titular) : '?'} tamano={44} />
                 <div>
-                  <strong>
-                    Nº {s.numero} · {titular ? nombreCompleto(titular) : 'Sin personas'}
-                  </strong>
+                  <strong>{nombreFamilia(s)}</strong>
                   <small>
-                    {TIPOS_SOCIO[s.tipo]} · {s.personas.length} persona{s.personas.length === 1 ? '' : 's'}
+                    Nº {s.numero} · {TIPOS_SOCIO[s.tipo]} · {s.personas.length} persona{s.personas.length === 1 ? '' : 's'}
                     {s.personas.some((p) => p.es_fundador) && ' · Fundador'}
                     {s.personas.some((p) => p.es_jubilado) && ' · Jubilado'}
                   </small>
                 </div>
                 <span className={`estado ${s.pagado ? 'estado-ok' : 'estado-no'}`}>
-                  {s.exento_cuota ? 'Exento' : s.pagado ? 'Pagado' : 'Pendiente'}
+                  {s.exento_cuota ? 'Exento' : s.pagado ? 'Al día' : 'Pendiente'}
                 </span>
               </Link>
             </li>
@@ -131,7 +131,7 @@ function NuevoSocio({ numero, onCancelar, onCreado }: {
 
   return (
     <form className="tarjeta formulario" onSubmit={crear}>
-      <h3>Nuevo socio</h3>
+      <h3>Nueva familia o socio individual</h3>
       <div className="fila">
         <label>
           Nº de socio

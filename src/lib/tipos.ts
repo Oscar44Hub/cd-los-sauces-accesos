@@ -1,7 +1,8 @@
 export type TipoSocio = 'familiar' | 'individual';
 export type Parentesco = 'titular' | 'conyuge' | 'hijo' | 'abuelo' | 'otro';
 export type EstadoTarjeta = 'activa' | 'bloqueada' | 'perdida';
-export type Rol = 'pendiente' | 'taquilla' | 'admin';
+export type Rol = 'pendiente' | 'socio' | 'admin' | 'superadmin';
+export type Tarifa = 'familiar' | 'individual' | 'jubilado' | 'fundador';
 export type TipoMovimiento = 'entrada' | 'salida';
 
 export interface Perfil {
@@ -9,6 +10,7 @@ export interface Perfil {
   email: string | null;
   nombre: string | null;
   rol: Rol;
+  socio_id: number | null;
 }
 
 export interface Temporada {
@@ -32,6 +34,7 @@ export interface Socio {
   email: string | null;
   direccion: string | null;
   observaciones: string | null;
+  tarifa: Tarifa | null;
 }
 
 export interface Persona {
@@ -62,6 +65,23 @@ export interface Cuota {
   fecha_pago: string | null;
   metodo: string | null;
   observaciones: string | null;
+}
+
+export interface Pago {
+  id: number;
+  cuota_id: number;
+  fecha: string;
+  importe: number;
+  metodo: string;
+  referencia: string | null;
+  notas: string | null;
+  creado_en: string;
+}
+
+export interface TarifaTemporada {
+  temporada_id: number;
+  tarifa: Tarifa;
+  importe: number;
 }
 
 export interface PaseDia {
