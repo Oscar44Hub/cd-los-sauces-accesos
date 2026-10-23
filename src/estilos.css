@@ -45,7 +45,10 @@ code { background: var(--verde-claro); padding: 0 4px; border-radius: 4px; }
 .marca span { display: flex; flex-direction: column; }
 .marca small { opacity: .8; font-size: .75rem; }
 .menu-usuario { position: relative; }
-.menu-usuario summary { list-style: none; cursor: pointer; font-size: 1.5rem; padding: 4px 8px; }
+.menu-usuario summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; gap: 6px;
+  padding: 8px 12px; border-radius: 999px; background: rgba(255, 255, 255, .16); font-size: .85rem; font-weight: 600; color: #fff;
+}
 .menu-usuario summary::-webkit-details-marker { display: none; }
 .menu-usuario > div {
   position: absolute; right: 0; top: 110%; min-width: 230px;

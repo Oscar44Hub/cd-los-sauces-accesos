@@ -1,3 +1,4 @@
+import { IconoMenu } from './IconoMenu';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useSesion } from '../auth/Sesion';
 import { supabase } from '../lib/supabase';
@@ -16,7 +17,9 @@ export function Layout() {
           </span>
         </NavLink>
         <details className="menu-usuario">
-          <summary aria-label="Menú">☰</summary>
+          <summary aria-label="Menú">
+            <IconoMenu />
+          </summary>
           <div onClick={(e) => ((e.currentTarget.parentElement as HTMLDetailsElement).open = false)}>
             <p className="tenue">
               {perfil?.nombre ?? perfil?.email}
